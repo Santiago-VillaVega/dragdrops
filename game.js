@@ -48,6 +48,29 @@
             evt.preventDefault();
             lastPress = evt.which;
         }, false);
+
+        canvas.addEventListener('touchmove', function(evt) {
+            evt.preventDefault();
+            var t = evt.targetTouches;
+            mouse.x = t[0].pageX - canvas.offsetLeft;
+            mouse.y = t[0].pageY - canvas.offsetTop;
+        }, false);
+
+        canvas.addEventListener('touchstart', function(evt) {
+            evt.preventDefault();
+            lastPress = 1;
+            var t = evt.targetTouches;
+            mouse.x = t[0].pageX - canvas.offsetLeft;
+            mouse.y = t[0].pageY - canvas.offsetTop;
+        }, false);
+
+        canvas.addEventListener('touchend', function(evt) {
+            lastRelease = 1;
+        }, false);
+
+        canvas.addEventListener('touchcancel', function(evt) {
+            lastRelease = 1;
+        }, false);
     }
 
     function random(max) {
