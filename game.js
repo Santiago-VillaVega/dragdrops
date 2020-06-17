@@ -11,26 +11,73 @@
     var i = 0;
     var l = 0;
 
-    function Circle(x, y, radius) {
-        this.x = (x === undefined) ? 0 : x;
-        this.y = (y === undefined) ? 0 : y;
-        this.radius = (radius === undefined) ? 0 : radius;
+    function Rectangle2D(x, y, width, height, createFromTopLeft) {
+        this.width = (width === undefined) ? 0 : width;
+        this.height = (height === undefined) ? this.width : height;
+        if (createFromTopLeft) {
+            this.left = (x === undefined) ? 0 : x;
+            this.top = (y === undefined) ? 0 : y;
+        } else {
+            this.x = (x === undefined) ? 0 : x;
+            this.y = (y === undefined) ? 0 : y;
+        }
     }
 
-    Circle.prototype.distance = function (circle) {
-        if (circle !== undefined) {
-            var dx = this.x - circle.x;
-            var dy = this.y - circle.y;
-            var circleRadius = circle.radius || 0;
-            return (Math.sqrt(dx*dx + dy*dy) - (this.radius + circleRadius));
-        }
-    };
+    Rectangle2D.prototype = {
+        left : 0,
+        top : 0,
+        width : 0,
+        height : 0,
 
-    Circle.prototype.fill = function (ctx) {
-        if (ctx !== undefined) {
-            ctx.beginPath();
-            ctx.arc(this.x, this.y, this.radius, 0, Math.PI*2, true);
-            ctx.fill();
+        get x() {
+            return this.left + this.width/2;
+        },
+        set x(value) {
+            this.left = value - this.width/2;
+        },
+        get y() {
+            return this.top + this.height/2;
+        },
+        set y(value) {
+            this.top = value - this.height/2;
+        },
+
+        get right() {
+            return this.left + this.width;
+        },
+        set right(value) {
+            this.left = value - this.width;
+        },
+
+        get bottom() {
+            return this.top + this.height;
+        },
+        set bottom(value) {
+            this.top = value -this.height;
+        },
+
+        contains: function (rect) {
+            if (rect !== undefined) {
+                return (this.left < (rect.left || rect.x) &&
+                        this.right > (rect.right || rect.x) &&
+                        this.top < (rect.top || rect.y) &&
+                        this.bottom > (rect.bottom || rect.y));
+            }
+        },
+
+        intersects: function (rect) {
+            if (rect !== undefined) {
+                return (this.left < rect.right &&
+                        this.right > rect.left &&
+                        this.top < rect.bottom &&
+                        this.bottom > rect.top);
+            }
+        },
+
+        fill: function (ctx) {
+            if (ctx !== undefined) {
+                ctx.fillRect(this.left, this.top, this.width, this.height);
+            }
         }
     };
 
@@ -82,7 +129,7 @@
         ctx.fillStyle = '#000';
         ctx.fillRect(0, 0, canvas.width, canvas.height);
 
-        //Draw Circles
+        //Draw Rectangles
         ctx.fillStyle = '#00f';
         for (i=0, l=draggables.length; i<l; i++) {
             draggables[i].fill(ctx);
@@ -92,7 +139,7 @@
         ctx.fillStyle = '#0f0';
         ctx.fillRect(pointer.x-1, pointer.y-1, 2, 2);
 
-        //Debug dragging circle
+        //Debug dragging rectangle
         ctx.fillStyle = '#fff';
         ctx.fillText('Dragging: '+dragging, 0, 10);
     }
@@ -119,7 +166,7 @@
         if (lastPress === 1) {
             //Chech for current dragging circle
             for (i=0, l=draggables.length; i<l; i++) {
-                if (draggables[i].distance(pointer)<0) {
+                if (draggables[i].contains(pointer)) {
                     dragging = i;
                     break;
                 }
@@ -154,7 +201,7 @@
 
         //Create draggables
         for (i=0; i<5; i++) {
-            draggables.push(new Circle(random(canvas.width), random(canvas.height), 10));
+            draggables.push(new Rectangle2D(random(canvas.width), random(canvas.height), 20, 20, false));
         }
 
         //Start game
