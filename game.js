@@ -8,6 +8,8 @@
     var pointer = {x: 0, y: 0};
     var dragging = null;
     var draggables = [];
+    var grid = [];
+    var isFinished = false;
     var i = 0;
     var l = 0;
 
@@ -35,6 +37,7 @@
         set x(value) {
             this.left = value - this.width/2;
         },
+        
         get y() {
             return this.top + this.height/2;
         },
@@ -53,7 +56,7 @@
             return this.top + this.height;
         },
         set bottom(value) {
-            this.top = value -this.height;
+            this.top = value - this.height;
         },
 
         contains: function (rect) {
@@ -77,6 +80,12 @@
         fill: function (ctx) {
             if (ctx !== undefined) {
                 ctx.fillRect(this.left, this.top, this.width, this.height);
+            }
+        },
+
+        stroke: function (ctx) {
+            if (ctx !== undefined) {
+                ctx.strokeRect(this.left, this.top, this.width, this.height);
             }
         }
     };
@@ -124,24 +133,51 @@
         return ~~(Math.random()*max);
     }
 
+    function getPuzzleSolved() {
+        for (i=0, l=grid.length; i<l; i++) {
+            if (grid[i].x !== draggables[i].x || grid[i].y !== draggables[i].y) {
+                return false;
+            }
+        }
+        return false;
+    }
+
     function paint(ctx) {
         //Clean canvas
-        ctx.fillStyle = '#000';
+        ctx.fillStyle = '#ccf';
         ctx.fillRect(0, 0, canvas.width, canvas.height);
 
-        //Draw Rectangles
-        ctx.fillStyle = '#00f';
-        for (i=0, l=draggables.length; i<l; i++) {
+        //Set default text properties
+        ctx.textAlign = 'center';
+
+        //Draw grid
+        ctx.fillStyle = '#999';
+        ctx.strokeStyle = '#999';
+        for (i=0, l=grid.length; i<l; i++) {
+            grid[i].stroke(ctx);
+            ctx.fillText(i, grid[i].x, grid[i].y);
+        }
+
+        //Draw rectangles
+        for (i=draggables.length - 1; i>-1; i--) {
+            ctx.fillStyle = '#00f';
             draggables[i].fill(ctx);
+            ctx.fillStyle = '#fff';
+            ctx.fillText(i, draggables[i].x, draggables[i].y);
         }
 
         //Debug pointer position
         ctx.fillStyle = '#0f0';
-        ctx.fillRect(pointer.x-1, pointer.y-1, 2, 2);
+        ctx.fillRect(pointer.x - 1, pointer.y - 1, 2, 2);
+
+        //Is the game finished?
+        ctx.fillStyle = '#fff';
+        if (isFinished) {
+            ctx.fillText('Well done!', canvas.width/2, canvas.height/2);
+        }
 
         //Debug dragging rectangle
-        ctx.fillStyle = '#fff';
-        ctx.fillText('Dragging: '+dragging, 0, 10);
+        //ctx.fillText('Dragging: '+dragging, 0, 10);
     }
 
     function act() {
@@ -168,19 +204,29 @@
             for (i=0, l=draggables.length; i<l; i++) {
                 if (draggables[i].contains(pointer)) {
                     dragging = i;
+                    isFinished = false;
                     break;
                 }
             }
-        } else if (lastRelease === 1) {
-            //Release current dragging circle
-            dragging = null;
         }
 
-        //Move current dragging circle
         if (dragging !== null) {
+            //Move current dragging rectangle
             draggables[dragging].x = pointer.x;
             draggables[dragging].y = pointer.y;
-        }
+
+            if (lastRelease === 1) {
+                //Snap draggable intro grid
+                if (grid[dragging].contains(pointer)) {
+                    draggables[dragging].x = grid[dragging].x;
+                    draggables[dragging].y = grid[dragging].y;
+                    isFinished = getPuzzleSolved();
+                }
+
+                //Release current dragging rectangle
+                dragging = null;
+            }
+        }        
     }
 
     function run() {
@@ -199,11 +245,16 @@
         canvas.width = 200;
         canvas.height = 300;
 
-        //Create draggables
-        for (i=0; i<5; i++) {
-            draggables.push(new Rectangle2D(random(canvas.width), random(canvas.height), 20, 20, false));
-        }
-
+        //Create grid and draggables
+        var x = 0,
+            y = 0;
+        for (y=0; y<4; y++) {
+            for (x=0; x<6; x++) {
+                grid.push(new Rectangle2D(x*25 + 25, y*25 + 100, 25, 25, true));
+                draggables.push(new Rectangle2D(random(canvas.width), random(canvas.height), 25, 25, false));
+            }
+        }    
+       
         //Start game
         enableInputs();
         run();
