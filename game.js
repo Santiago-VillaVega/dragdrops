@@ -2,16 +2,19 @@
 (function (window,  undefined) {
     'use strict';
     var canvas = null, ctx = null;
+    var lastUpdate = 0;
     var lastPress = null;
     var lastRelease = null;
     var mouse = {x: 0, y: 0};
     var pointer = {x: 0, y: 0};
     var dragging = null;
+    var tapArea = null;
     var draggables = [];
     var grid = [];
     var isFinished = false;
     var i = 0;
     var l = 0;
+    var spritesheet = new Image();
 
     function Rectangle2D(x, y, width, height, createFromTopLeft) {
         this.width = (width === undefined) ? 0 : width;
@@ -30,6 +33,8 @@
         top : 0,
         width : 0,
         height : 0,
+        rotation : 0,
+        rotationTransition : 0,
 
         get x() {
             return this.left + this.width/2;
@@ -86,6 +91,19 @@
         stroke: function (ctx) {
             if (ctx !== undefined) {
                 ctx.strokeRect(this.left, this.top, this.width, this.height);
+            }
+        },
+
+        drawImageArea : function (ctx, img, sx, sy, sw, sh) {
+            if (img.width) {
+                ctx.save();
+                ctx.translate(this.x, this.y);
+                //ctx.scale(this.scale, this.scale);
+                ctx.rotate((this.rotation + this.rotationTransition) * Math.PI/180);
+                ctx.drawImage(img, sx, sy, sw, sh, -this.width/2, -this.height/2, this.width, this.height);
+                ctx.restore();
+            } else {
+                this.stroke(ctx);
             }
         }
     };
@@ -151,20 +169,28 @@
         ctx.textAlign = 'center';
 
         //Draw grid
-        ctx.fillStyle = '#999';
+        //ctx.fillStyle = '#999';
         ctx.strokeStyle = '#999';
         for (i=0, l=grid.length; i<l; i++) {
             grid[i].stroke(ctx);
-            ctx.fillText(i, grid[i].x, grid[i].y);
+            //ctx.fillText(i, grid[i].x, grid[i].y);
         }
 
         //Draw rectangles
+        ctx.strokeStyle = '#00f';
         for (i=draggables.length - 1; i>-1; i--) {
-            ctx.fillStyle = '#00f';
+            /*ctx.fillStyle = '#00f';
             draggables[i].fill(ctx);
             ctx.fillStyle = '#fff';
-            ctx.fillText(i, draggables[i].x, draggables[i].y);
+            ctx.fillText(i, draggables[i].x, draggables[i].y);*/
+            var x = i % 6,
+                y = ~~(i/6);
+            draggables[i].drawImageArea(ctx, spritesheet, x * 25, y * 25, 25, 25);
         }
+
+        //Debug tap area position
+        ctx.strokeStyle = '#0f0';
+        tapArea.stroke(ctx);
 
         //Debug pointer position
         ctx.fillStyle = '#0f0';
@@ -180,7 +206,7 @@
         //ctx.fillText('Dragging: '+dragging, 0, 10);
     }
 
-    function act() {
+    function act(deltaTime) {
         //Set pointer to mouse
         pointer.x = mouse.x;
         pointer.y = mouse.y;
@@ -199,6 +225,16 @@
             pointer.y = canvas.height;
         }
 
+        //Animate pieces rotation
+        for (i=0, l=draggables.length; i < l; i++) {
+            if (draggables[i].rotationTransition < 0) {
+                draggables[i].rotationTransition += deltaTime * 360;
+                if (draggables[i].rotationTransition > 0) {
+                    draggables[i].rotationTransition = 0;
+                }
+            }
+        }
+
         if (lastPress === 1) {
             //Chech for current dragging circle
             for (i=0, l=draggables.length; i<l; i++) {
@@ -208,6 +244,10 @@
                     break;
                 }
             }
+
+            //Position tap area here
+            tapArea.x = pointer.x;
+            tapArea.y = pointer.y;
         }
 
         if (dragging !== null) {
@@ -216,8 +256,17 @@
             draggables[dragging].y = pointer.y;
 
             if (lastRelease === 1) {
+                //Rotate puzzle piece
+                if (tapArea.contains(pointer)) {
+                    draggables[dragging].rotationTransition -= 90;
+                    draggables[dragging].rotation += 90;
+                    if (draggables[dragging].rotation >= 360) {
+                        draggables[dragging].rotation -= 360;
+                    }
+                }
+
                 //Snap draggable intro grid
-                if (grid[dragging].contains(pointer)) {
+                if (grid[dragging].contains(pointer) && draggables[dragging].rotation === 0) {
                     draggables[dragging].x = grid[dragging].x;
                     draggables[dragging].y = grid[dragging].y;
                     isFinished = getPuzzleSolved();
@@ -231,7 +280,15 @@
 
     function run() {
         window.requestAnimationFrame(run);
-        act();
+
+        var now = Date.now(),
+            deltaTime = (now - lastUpdate)/1000;
+        if (deltaTime > 1) {
+            deltaTime = 0;
+        }
+        lastUpdate = now;
+
+        act(deltaTime);
         paint(ctx);
 
         lastPress = null;
@@ -245,13 +302,22 @@
         canvas.width = 200;
         canvas.height = 300;
 
+        //Load assets
+        spritesheet.src = 'assets/puzzle.png';
+
+        //Create tap area
+        tapArea = new Rectangle2D(0, 0, 6, 6, false);
+
         //Create grid and draggables
         var x = 0,
-            y = 0;
+            y = 0,
+            draggable = null;
         for (y=0; y<4; y++) {
             for (x=0; x<6; x++) {
                 grid.push(new Rectangle2D(x*25 + 25, y*25 + 100, 25, 25, true));
-                draggables.push(new Rectangle2D(random(canvas.width), random(canvas.height), 25, 25, false));
+                draggable = new Rectangle2D(random(canvas.width), random(canvas.height), 25, 25, false);
+                draggable.rotation = random(4) * 90;
+                draggables.push(draggable);
             }
         }    
        
