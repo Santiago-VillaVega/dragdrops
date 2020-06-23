@@ -145,10 +145,22 @@
         canvas.addEventListener('touchcancel', function(evt) {
             lastRelease = 1;
         }, false);
+
+        canvas.addEventListener('contextmenu', function(evt){
+            evt.preventDefault();
+        }, false);
     }
 
     function random(max) {
         return ~~(Math.random()*max);
+    }
+
+    function randomReorder(array) {
+        var newArray = [];
+        for (i=0, l=array.length; i<l; i++) {
+            newArray.splice(random(i+1), 0, array[i]);
+        }
+        return newArray;
     }
 
     function getPuzzleSolved() {
@@ -157,7 +169,7 @@
                 return false;
             }
         }
-        return false;
+        return true;
     }
 
     function paint(ctx) {
@@ -232,11 +244,16 @@
                 if (draggables[i].rotationTransition > 0) {
                     draggables[i].rotationTransition = 0;
                 }
+            } else if (draggables[i].rotationTransition > 0) {
+                draggables[i].rotationTransition -= deltaTime * 360;
+                if (draggables[i].rotationTransition < 0) {
+                    draggables[i].rotationTransition = 0;
+                }
             }
         }
 
-        if (lastPress === 1) {
-            //Chech for current dragging circle
+        if (lastPress === 1 || lastPress === 3) {
+            //Chech for current dragging rectangle
             for (i=0, l=draggables.length; i<l; i++) {
                 if (draggables[i].contains(pointer)) {
                     dragging = i;
@@ -255,15 +272,24 @@
             draggables[dragging].x = pointer.x;
             draggables[dragging].y = pointer.y;
 
-            if (lastRelease === 1) {
-                //Rotate puzzle piece
+            if (lastRelease === 1 || lastRelease === 3) {
                 if (tapArea.contains(pointer)) {
+                    if (lastRelease === 1) {
+                    //Rotate puzzle piece clockwise  
                     draggables[dragging].rotationTransition -= 90;
                     draggables[dragging].rotation += 90;
                     if (draggables[dragging].rotation >= 360) {
                         draggables[dragging].rotation -= 360;
                     }
+                } else if (lastRelease === 3) {
+                    //Rotate puzzle piece counter clockwise
+                    draggables[dragging].rotationTransition += 90;
+                    draggables[dragging].rotation -= 90;
+                    if (draggables[dragging].rotation < 0) {
+                        draggables[dragging].rotation += 360;
+                    }
                 }
+            }    
 
                 //Snap draggable intro grid
                 if (grid[dragging].contains(pointer) && draggables[dragging].rotation === 0) {
@@ -315,11 +341,25 @@
         for (y=0; y<4; y++) {
             for (x=0; x<6; x++) {
                 grid.push(new Rectangle2D(x*25 + 25, y*25 + 100, 25, 25, true));
-                draggable = new Rectangle2D(random(canvas.width), random(canvas.height), 25, 25, false);
+                draggable = new Rectangle2D(0, 0, 25, 25, false);
                 draggable.rotation = random(4) * 90;
                 draggables.push(draggable);
             }
-        }    
+        }
+        
+        //Position draggables
+        for (i=0, l=draggables.length; i<l; i++) {
+            x = i % 6;
+            y = ~~(i/6);
+            draggables[i].left = 12 + x*30;
+            if (i < l/2) {
+                draggables[i].top = 25 + y*30;
+            } else {
+                draggables[i].top = 160 + y*30;
+            }
+        }
+
+        draggables = randomReorder(draggables);
        
         //Start game
         enableInputs();
